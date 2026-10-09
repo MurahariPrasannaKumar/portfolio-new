@@ -1,0 +1,307 @@
+"use client"
+import Image from "next/image"
+import { CONTACT, PROJECTS, UI, type Project } from "@/lib/content"
+import { GlowRule, Label, Tag } from "@/components/ui/bits"
+import { Magnetic } from "@/components/ui/magnetic"
+
+export function WorkMeta() {
+  return (
+    <div className="h-full flex flex-col justify-between p-4 @[260px]:p-5">
+      <Label>{UI.workMeta.label}</Label>
+      <div>
+        <span className="font-display text-fg leading-none block text-[clamp(1.5rem,min(22cqw,26cqh),3.75rem)]">
+          {String(PROJECTS.length).padStart(2, "0")}
+        </span>
+        <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-dim block mt-1">
+          {UI.workMeta.line}
+        </span>
+      </div>
+      <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-mid leading-relaxed">
+        {UI.workMeta.tags}
+      </span>
+    </div>
+  )
+}
+
+export function CvCard() {
+  return (
+    <div className="h-full flex flex-col justify-between p-4 @[260px]:p-5">
+      <Label right="PDF">{UI.cv.label}</Label>
+      <div className="flex flex-col gap-2">
+        {/* One line in the phone's full-width bar, two in the desktop card's
+            portrait box — the break is gated on the same height as the contents
+            line below it. */}
+        <span className="font-display text-fg leading-[0.88] block tracking-tight text-[clamp(1.25rem,min(20cqw,20cqh),3rem)]">
+          {UI.cv.top}{" "}
+          <br className="cq-h160" />
+          {UI.cv.bottom}
+        </span>
+        {/* First thing to go when the card is short — the CV itself says this,
+            and DOWNLOAD is the only line here that has to survive. */}
+        <span className="cq-h160 font-mono text-[9px] uppercase tracking-[0.16em] text-dim leading-relaxed">
+          {UI.cv.contents}
+        </span>
+      </div>
+      <div className="flex flex-col gap-2">
+        <GlowRule />
+        <Magnetic strength={0.25}>
+          <a
+            href={CONTACT.cv}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono text-[9px] uppercase tracking-[0.24em] text-mid hover:text-fg transition-colors flex items-center gap-2"
+          >
+            {UI.cv.download} <span aria-hidden>↓</span>
+          </a>
+        </Magnetic>
+      </div>
+    </div>
+  )
+}
+
+/** A project tile. Click expands it — handled by the stage, not here. */
+export function ProjectCard({ project, onOpen }: { project: Project; onOpen: (num: string) => void }) {
+  return (
+    <button
+      onClick={() => onOpen(project.num)}
+      className="group h-full w-full text-start relative overflow-hidden"
+    >
+      {/* No screenshot backdrop for a project that doesn't have one yet — the
+          card's own background (`.module` in globals.css) carries the tile. */}
+      {project.images[0] && (
+        <>
+          <Image
+            src={project.images[0]}
+            alt={project.title.replace("\n", " ")}
+            fill
+            sizes="(max-width: 768px) 50vw, 40vw"
+            /* Blurred on purpose: at readable sharpness the screenshot's own
+               headlines collide with this card's title and label. Sharpens on hover. */
+            className="object-cover object-top opacity-[0.22] blur-[5px] group-hover:opacity-45 group-hover:blur-[1px] group-hover:scale-[1.03] transition-all duration-700 ease-out"
+          />
+          {/* Darkest at top and bottom — where the label, title and chips sit — and
+              lightest through the middle, so the imagery reads without fighting text. */}
+          <div className="absolute inset-0 bg-gradient-to-b from-card via-card/70 to-card" />
+        </>
+      )}
+
+      {/* Ghost number, echoing v3's oversized section numerals. */}
+      <span
+        aria-hidden
+        className="absolute font-display leading-none text-fg pointer-events-none select-none end-[-0.04em] bottom-[-0.14em]"
+        style={{ fontSize: "clamp(5rem, 22cqw, 16rem)", opacity: 0.05 }}
+      >
+        {project.num}
+      </span>
+
+      <div className="relative h-full flex flex-col justify-between p-4 @[300px]:p-5">
+        <Label right={project.year}>{UI.project.label} — {project.num}</Label>
+
+        <h3 className="font-display text-fg leading-[0.86] tracking-tight whitespace-pre-line text-[clamp(1.35rem,min(11cqw,22cqh),4rem)]">
+          {project.title}
+        </h3>
+
+        <div className="flex flex-col gap-2 min-w-0">
+          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-mid truncate">
+            {project.role}
+          </span>
+          <div className="hidden @[300px]:flex flex-wrap gap-1.5">
+            {project.stack.slice(0, 4).map((s) => <Tag key={s}>{s}</Tag>)}
+          </div>
+          <span className="font-mono text-[9px] uppercase tracking-[0.24em] text-dim group-hover:text-fg transition-colors flex items-center gap-2">
+            {project.archived ? UI.project.archivedView : UI.expand} <span aria-hidden className="inline-block">↗</span>
+          </span>
+        </div>
+      </div>
+    </button>
+  )
+}
+
+// ── Expanded detail ───────────────────────────────────────────────────────────
+
+/**
+ * Vertical filmstrip of the project's screenshots.
+ *
+ * Each shot is shown at full width and its natural aspect ratio — nothing is
+ * cropped — and the strip scrolls upward continuously. The list is rendered
+ * twice so the -50% translate in @keyframes marquee-y loops seamlessly.
+ */
+function VerticalReel({ images, alt }: { images: string[]; alt: string }) {
+  const loop = [...images, ...images]
+
+  return (
+    <div className="group/reel relative h-full w-full overflow-hidden bg-bg [--reel-speed:48s] @[900px]:[--reel-speed:40s]">
+      <div
+        /* Runs continuously — no hover pause. (motion-reduce still wins: that's
+           an OS accessibility preference, not an interaction.) */
+        className="flex flex-col w-full motion-reduce:animate-none"
+        style={{
+          animationName: "marquee-y",
+          animationDuration: "var(--reel-speed)",
+          animationTimingFunction: "linear",
+          animationIterationCount: "infinite",
+        }}
+      >
+        {loop.map((src, i) => (
+          <div key={`${src}-${i}`} className="w-full shrink-0 border-b border-hairline">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src}
+              alt={i < images.length ? `${alt} — view ${i + 1}` : ""}
+              aria-hidden={i >= images.length}
+              /* Full colour: the screenshots are the content here. Monochrome
+                 is a rule for type and chrome, not for the work itself. */
+              className="block w-full h-auto"
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Soft top/bottom falloff so the strip bleeds rather than hard-cutting. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-card to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-card to-transparent" />
+
+      <span className="pointer-events-none absolute bottom-3 end-4 font-mono text-[8px] uppercase tracking-[0.22em] text-dim">
+        {String(images.length).padStart(2, "0")} {UI.project.views}
+      </span>
+    </div>
+  )
+}
+
+export function ProjectDetail({ num }: { num: string }) {
+  const project = PROJECTS.find((p) => p.num === num)!
+  const title = project.title.replace("\n", " ")
+  const hasImages = project.images.length > 0
+
+  return (
+    /*
+      Two different layouts.
+
+      Narrow (a phone): one column that scrolls as a whole. The copy used to be
+      `shrink-0` with its own `overflow-y-auto`, which meant it took its natural
+      height and never scrolled — the module's `overflow: hidden` simply clipped
+      whatever didn't fit. The scroller has to be the outer element, with the
+      reel given a definite share of the card so the copy can flow past it.
+
+      Wide (desktop): reel and copy side by side, nothing scrolls but the copy.
+
+      A project with no screenshots yet drops the reel entirely and the copy
+      column takes the full card — not a reel showing nothing.
+    */
+    <div className="h-full min-h-0 overflow-y-auto @[700px]:overflow-hidden flex flex-col @[700px]:flex-row">
+      {/* Reel — full-bleed and uncropped. Definite height on a phone so it
+          can't eat the column; fills the row on desktop. */}
+      {hasImages && (
+        <div className="relative shrink-0 h-[45cqh] @[700px]:h-auto @[700px]:flex-1 @[700px]:min-h-0 min-w-0 border-b @[700px]:border-b-0 @[700px]:border-e border-hairline">
+          <VerticalReel images={project.images} alt={title} />
+        </div>
+      )}
+
+      {/* Copy */}
+      <div
+        className={`w-full shrink-0 flex flex-col gap-4 p-5 @[700px]:p-6 @[700px]:min-h-0 @[700px]:overflow-y-auto ${
+          hasImages ? "@[700px]:w-[36%]" : "@[700px]:w-full"
+        }`}
+      >
+        <Label right={project.year}>{UI.project.label} — {project.num}</Label>
+
+        <h2 className="font-display text-fg leading-[0.86] tracking-tight whitespace-pre-line text-4xl @[700px]:text-6xl">
+          {project.title}
+        </h2>
+
+        <div className="flex flex-col gap-1">
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-mid">{project.role}</span>
+          <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-dim">{project.subtitle}</span>
+        </div>
+
+        <GlowRule />
+
+        <div className="flex flex-col gap-3">
+          {project.detail.map((para, i) => (
+            <p key={i} className="font-mono text-[10px] leading-relaxed text-mid">{para}</p>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 @[700px]:mt-auto pt-2">
+          {project.stack.map((s) => <Tag key={s}>{s}</Tag>)}
+        </div>
+
+        {project.url ? (
+          <Magnetic strength={0.3}>
+            <a
+              href={project.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.24em] text-fg border border-fg px-5 py-3 hover:bg-fg hover:text-bg transition-colors duration-150"
+            >
+              {UI.project.visit} <span aria-hidden className="inline-block">→</span>
+            </a>
+          </Magnetic>
+        ) : (
+          <span className="inline-flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.24em] text-dim border border-hairline px-5 py-3 self-start">
+            {UI.project.offline}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Chrome for an expanded project: close, plus jump to siblings.
+ *
+ * A left-hand column on a desktop and a bar along the bottom on a phone — the
+ * flip is `.chrome` in globals.css, gated on the card's height. In bar mode the
+ * project titles drop and the numerals carry the list on their own; there is no
+ * room for twenty characters of title beside four of them.
+ */
+export function DetailNav({
+  num, onClose, onOpen,
+}: { num: string; onClose: () => void; onOpen: (n: string) => void }) {
+  return (
+    <div className="chrome h-full flex justify-between p-4 @[260px]:p-5 gap-3 min-h-0 min-w-0">
+      <button
+        onClick={onClose}
+        className="font-mono text-[9px] uppercase tracking-[0.24em] text-mid hover:text-fg transition-colors flex items-center gap-2 self-center shrink-0"
+      >
+        <span aria-hidden className="inline-block">←</span> {UI.close} <span className="cq-h160 text-dim">{UI.esc}</span>
+      </button>
+
+      {/* Rows share the column evenly, matching the STACK spec sheets, so the
+          sidebar fills instead of pooling its content in the middle. */}
+      <div className="chrome-list flex-1 min-h-0 min-w-0 flex">
+        {PROJECTS.map((p) => {
+          const active = p.num === num
+          return (
+            <button
+              key={p.num}
+              onClick={() => onOpen(p.num)}
+              className="chrome-item text-start group flex flex-1 min-h-0 min-w-0 items-center gap-2 border-hairline"
+            >
+              <span className={`font-mono text-[9px] tracking-[0.2em] ${active ? "text-fg" : "text-dim"}`}>
+                {p.num}
+              </span>
+              <span
+                className={`cq-h160 font-mono text-[9px] uppercase tracking-[0.12em] truncate transition-colors ${
+                  active ? "text-fg" : "text-dim group-hover:text-mid"
+                }`}
+              >
+                {p.title.replace("\n", " ")}
+              </span>
+              {active && (
+                <span
+                  className="cq-h160 ms-auto w-4 h-px bg-fg shrink-0"
+                  style={{ boxShadow: "0 0 8px 1px rgb(var(--glow) / calc(0.6 * var(--glow-k)))" }}
+                />
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      <span className="cq-h160 font-mono text-[8px] uppercase tracking-[0.2em] text-dim leading-relaxed">
+        ← → {UI.step}
+      </span>
+    </div>
+  )
+}
